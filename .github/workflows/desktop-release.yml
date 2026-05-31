@@ -2,7 +2,7 @@ name: Desktop Release
 
 # Builds + publishes SIGNED, auto-updating Mintokei Desktop installers (with the
 # updater `latest.json`) to THIS public repo. The application source is checked
-# out from the PRIVATE Mintokei/mintokei-new repo via the SOURCE_TOKEN secret, so
+# out from the PRIVATE Mintokei/mintokei repo via the SOURCE_TOKEN secret, so
 # source stays private while binaries + manifest are public (which is what the
 # in-app updater fetches).
 #
@@ -11,7 +11,7 @@ name: Desktop Release
 # whose asset URLs point at THIS repo (correct for the updater endpoint).
 #
 # Required secrets (org or repo level):
-#   SOURCE_TOKEN                         - read access to Mintokei/mintokei-new
+#   SOURCE_TOKEN                         - read access to Mintokei/mintokei
 #   TAURI_SIGNING_PRIVATE_KEY            - updater private key (generated locally)
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   - its password
 
@@ -23,7 +23,7 @@ on:
         required: true
         type: string
       source_ref:
-        description: 'Source ref/sha in Mintokei/mintokei-new to build (e.g. master or a tag)'
+        description: 'Source ref/sha in Mintokei/mintokei to build (e.g. master or a tag)'
         required: true
         type: string
 
@@ -59,7 +59,7 @@ jobs:
       - name: Checkout private source
         uses: actions/checkout@v4
         with:
-          repository: Mintokei/mintokei-new
+          repository: Mintokei/mintokei
           ref: ${{ inputs.source_ref }}
           token: ${{ secrets.SOURCE_TOKEN }}
 
@@ -130,6 +130,6 @@ jobs:
           releaseBody: |
             Auto-updating Mintokei Desktop installers.
 
-            Built from Mintokei/mintokei-new@${{ inputs.source_ref }}.
+            Built from Mintokei/mintokei@${{ inputs.source_ref }}.
           releaseDraft: true
           prerelease: false
