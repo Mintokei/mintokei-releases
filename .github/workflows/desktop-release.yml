@@ -59,7 +59,7 @@ jobs:
       - name: Checkout private source
         uses: actions/checkout@v4
         with:
-          repository: chovik/mintokei-new
+          repository: Mintokei/mintokei-new
           ref: ${{ inputs.source_ref }}
           token: ${{ secrets.SOURCE_TOKEN }}
 
@@ -130,6 +130,6 @@ jobs:
           releaseBody: |
             Auto-updating Mintokei Desktop installers.
 
-            Built from chovik/mintokei-new@${{ inputs.source_ref }}.
+            Built from Mintokei/mintokei-new@${{ inputs.source_ref }}.
           releaseDraft: true
           prerelease: false
