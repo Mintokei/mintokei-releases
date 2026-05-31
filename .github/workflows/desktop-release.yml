@@ -1,0 +1,135 @@
+name: Desktop Release
+
+# Builds + publishes SIGNED, auto-updating Mintokei Desktop installers (with the
+# updater `latest.json`) to THIS public repo. The application source is checked
+# out from the PRIVATE chovik/mintokei-new repo via the SOURCE_TOKEN secret, so
+# source stays private while binaries + manifest are public (which is what the
+# in-app updater fetches).
+#
+# Trigger manually: provide the release tag and the source ref (tag/branch/sha)
+# to build. tauri-action aggregates every platform into one release + latest.json
+# whose asset URLs point at THIS repo (correct for the updater endpoint).
+#
+# Required secrets (org or repo level):
+#   SOURCE_TOKEN                         - read access to chovik/mintokei-new
+#   TAURI_SIGNING_PRIVATE_KEY            - updater private key (generated locally)
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD   - its password
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. desktop-v0.2.0)'
+        required: true
+        type: string
+      source_ref:
+        description: 'Source ref/sha in chovik/mintokei-new to build (e.g. master or a tag)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: linux-x64
+            runner: ubuntu-22.04
+            rust-target: x86_64-unknown-linux-gnu
+            dotnet-rid: linux-x64
+          - label: windows-x64
+            runner: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            dotnet-rid: win-x64
+          - label: macos-arm64
+            runner: macos-latest
+            rust-target: aarch64-apple-darwin
+            dotnet-rid: osx-arm64
+          - label: macos-x64
+            runner: macos-13
+            rust-target: x86_64-apple-darwin
+            dotnet-rid: osx-x64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout private source
+        uses: actions/checkout@v4
+        with:
+          repository: chovik/mintokei-new
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src/Mintokei.Desktop/src-tauri
+          key: ${{ matrix.label }}
+
+      - name: Install Linux build dependencies
+        if: matrix.runner == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev \
+            pkg-config \
+            build-essential
+
+      - name: Install WebApp dependencies
+        working-directory: src/Mintokei.WebApp
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Desktop dependencies
+        working-directory: src/Mintokei.Desktop
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish API sidecar
+        working-directory: src/Mintokei.Desktop
+        env:
+          DOTNET_RID: ${{ matrix.dotnet-rid }}
+          TARGET_TRIPLE: ${{ matrix.rust-target }}
+        shell: bash
+        run: bash scripts/publish-api.sh
+
+      - name: Build + publish Tauri bundle
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Apple/Windows OS code-signing — add once certs exist (mirror the
+          # source repo's desktop-release.yml env block).
+        with:
+          projectPath: src/Mintokei.Desktop
+          args: --target ${{ matrix.rust-target }}
+          tagName: ${{ inputs.tag }}
+          releaseName: 'Mintokei Desktop ${{ inputs.tag }}'
+          releaseBody: |
+            Auto-updating Mintokei Desktop installers.
+
+            Built from chovik/mintokei-new@${{ inputs.source_ref }}.
+          releaseDraft: true
+          prerelease: false
