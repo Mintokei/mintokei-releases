@@ -1,0 +1,126 @@
+name: Runner Release
+
+# Builds self-contained, single-file Mintokei.Runner binaries from the PRIVATE
+# source (Mintokei/mintokei, checked out via SOURCE_TOKEN) and publishes them —
+# with SHA-256 checksums — to a draft release in THIS public repo, so they are
+# publicly downloadable while the source stays private. The runner dials OUT
+# only, so headless boxes need no inbound ports or TLS.
+#
+# Trigger manually with the release tag + the source ref to build.
+# Required secret: SOURCE_TOKEN (read access to Mintokei/mintokei) — already set.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. runner-v0.1.0)'
+        required: true
+        type: string
+      source_ref:
+        description: 'Source ref/sha in Mintokei/mintokei to build (e.g. master)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-22.04
+          - rid: linux-arm64        # cross-arch publish from the x64 host (no R2R)
+            runner: ubuntu-22.04
+          - rid: win-x64
+            runner: windows-latest
+          - rid: osx-arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+      - name: Checkout private source
+        uses: actions/checkout@v4
+        with:
+          repository: Mintokei/mintokei
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish runner (self-contained, single file)
+        shell: bash
+        run: |
+          dotnet publish src/Mintokei.Runner/Mintokei.Runner.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:DebugType=embedded \
+            -o publish
+
+      - name: Stage asset + checksum
+        id: asset
+        shell: bash
+        run: |
+          ext=""
+          [[ "${{ matrix.rid }}" == win-* ]] && ext=".exe"
+          name="mintokei-runner-${{ matrix.rid }}$ext"
+          mkdir -p dist
+          cp "publish/Mintokei.Runner$ext" "dist/$name"
+          chmod +x "dist/$name" || true
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "$name" > "$name.sha256")
+          else
+            (cd dist && shasum -a 256 "$name" > "$name.sha256")
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: 'Mintokei Runner ${{ inputs.tag }}'
+          draft: true
+          prerelease: false
+          files: artifacts/*
+          body: |
+            Self-contained Mintokei Runner binaries — no .NET install required.
+
+            Built from Mintokei/mintokei@${{ inputs.source_ref }}.
+
+            **Assets** (verify with the matching `.sha256`):
+            - Linux:   `mintokei-runner-linux-x64`, `mintokei-runner-linux-arm64`
+            - Windows: `mintokei-runner-win-x64.exe`
+            - macOS:   `mintokei-runner-osx-arm64` (Apple Silicon)
+
+            **Install (headless Linux/macOS):** use `scripts/install-runner.sh`, or:
+            ```bash
+            curl -fsSL <release-asset-url> -o mintokei-runner
+            chmod +x mintokei-runner
+            ./mintokei-runner --backend https://your-server --token <enrollment-token>
+            ```
+            Generate the one-time enrollment token in the WebApp: Runners → Add.
