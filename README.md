@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/Mintokei/mintokei-releases/main/scr
   | sudo bash -s -- --domain mintokei.example.com --email you@example.com
 ```
 
-…or manually: download `docker-compose.yml` + `.env.example` from the latest
+…or manually: download `docker-compose.yml` + `env.example` from the latest
 [**API release**](../../releases), set `DOMAIN` / `ACME_EMAIL` / `JWT_SIGNING_KEY`,
 then `docker compose up -d` (set `COMPOSE_PROFILES=tls` for bundled HTTPS via the
 included `Caddyfile`).
