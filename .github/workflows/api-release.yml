@@ -2,8 +2,9 @@ name: API Release
 
 # Builds self-contained, single-file Mintokei.Api binaries from the PRIVATE
 # source (Mintokei/mintokei, checked out via SOURCE_TOKEN) and publishes them —
-# with SHA-256 checksums — to a draft release in THIS public repo, so they are
-# publicly downloadable while the source stays private.
+# plus the deploy helpers (compose/Caddyfile/.env.example/install scripts) — to a
+# draft release in THIS public repo, so the whole self-host bundle is publicly
+# downloadable while the source stays private.
 #
 # Trigger manually with the release tag + the source ref to build.
 # Required secret: SOURCE_TOKEN (read access to Mintokei/mintokei) — already set.
@@ -92,6 +93,20 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source (for deploy helpers)
+        uses: actions/checkout@v4
+        with:
+          repository: Mintokei/mintokei
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          path: src
+
+      - name: Stage deploy helpers
+        run: |
+          mkdir -p deploy
+          cp src/docker-compose.yml src/Caddyfile src/.env.example deploy/
+          cp src/scripts/install-server.sh src/scripts/install-runner.sh deploy/
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -105,16 +120,24 @@ jobs:
           name: 'Mintokei API ${{ inputs.tag }}'
           draft: true
           prerelease: false
-          files: artifacts/*
+          make_latest: false      # desktop owns "latest" for the auto-updater
+          files: |
+            artifacts/*
+            deploy/*
           body: |
-            Self-contained Mintokei API binaries — no .NET install required.
+            Self-contained Mintokei API binaries + the self-host deploy helpers.
 
             Built from Mintokei/mintokei@${{ inputs.source_ref }}.
 
-            **Assets** (verify with the matching `.sha256`):
+            **Binaries** (verify with the matching `.sha256`):
             - Linux:   `mintokei-api-linux-x64`, `mintokei-api-linux-arm64`
             - Windows: `mintokei-api-win-x64.exe`
             - macOS:   `mintokei-api-osx-arm64` (Apple Silicon)
 
-            Serves REST + SignalR + WebSocket + gRPC. Does not serve the WebApp
-            UI — serve the WebApp separately, or use the container image / desktop app.
+            **Self-host (Docker):** download `docker-compose.yml` + `.env.example`,
+            set `DOMAIN`/`ACME_EMAIL`/`JWT_SIGNING_KEY`, then `docker compose up -d`
+            (set `COMPOSE_PROFILES=tls` for bundled HTTPS via the included `Caddyfile`).
+            Or run `install-server.sh`. Images: `ghcr.io/mintokei/mintokei-api`.
+
+            The API binary serves REST + SignalR + WebSocket + gRPC. The container
+            image also serves the WebApp UI.
