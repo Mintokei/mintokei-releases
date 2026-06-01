@@ -2,7 +2,7 @@ name: Runner Release
 
 # Builds self-contained, single-file Mintokei.Runner binaries from the PRIVATE
 # source (Mintokei/mintokei, checked out via SOURCE_TOKEN) and publishes them —
-# with SHA-256 checksums — to a draft release in THIS public repo, so they are
+# plus install-runner.sh — to a draft release in THIS public repo, so they are
 # publicly downloadable while the source stays private. The runner dials OUT
 # only, so headless boxes need no inbound ports or TLS.
 #
@@ -93,6 +93,19 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout source (for install-runner.sh)
+        uses: actions/checkout@v4
+        with:
+          repository: Mintokei/mintokei
+          ref: ${{ inputs.source_ref }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          path: src
+
+      - name: Stage helper
+        run: |
+          mkdir -p deploy
+          cp src/scripts/install-runner.sh deploy/
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -106,9 +119,12 @@ jobs:
           name: 'Mintokei Runner ${{ inputs.tag }}'
           draft: true
           prerelease: false
-          files: artifacts/*
+          make_latest: false      # desktop owns "latest" for the auto-updater
+          files: |
+            artifacts/*
+            deploy/*
           body: |
-            Self-contained Mintokei Runner binaries — no .NET install required.
+            Self-contained Mintokei Runner binaries + install-runner.sh.
 
             Built from Mintokei/mintokei@${{ inputs.source_ref }}.
 
@@ -117,10 +133,9 @@ jobs:
             - Windows: `mintokei-runner-win-x64.exe`
             - macOS:   `mintokei-runner-osx-arm64` (Apple Silicon)
 
-            **Install (headless Linux/macOS):** use `scripts/install-runner.sh`, or:
+            **Install (headless Linux/macOS):** download `install-runner.sh` and run:
             ```bash
-            curl -fsSL <release-asset-url> -o mintokei-runner
-            chmod +x mintokei-runner
-            ./mintokei-runner --backend https://your-server --token <enrollment-token>
+            sudo ./install-runner.sh --backend https://your-server --token <enrollment-token>
             ```
-            Generate the one-time enrollment token in the WebApp: Runners → Add.
+            It downloads the right binary, enrolls, and installs a systemd service.
+            Generate the one-time token in the WebApp: Runners → Add.
