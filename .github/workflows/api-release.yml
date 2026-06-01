@@ -104,7 +104,8 @@ jobs:
       - name: Stage deploy helpers
         run: |
           mkdir -p deploy
-          cp src/docker-compose.yml src/Caddyfile src/.env.example deploy/
+          cp src/docker-compose.yml src/Caddyfile deploy/
+          cp src/.env.example deploy/env.example
           cp src/scripts/install-server.sh src/scripts/install-runner.sh deploy/
 
       - name: Download all build artifacts
