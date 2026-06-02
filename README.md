@@ -23,8 +23,13 @@ connect to a remote server (Sign out → enter the server URL).
 **Docker (recommended):**
 
 ```bash
+# Bundled HTTPS — Caddy gets a Let's Encrypt cert for your domain:
 curl -fsSL https://raw.githubusercontent.com/Mintokei/mintokei-releases/main/scripts/install-server.sh \
   | sudo bash -s -- --domain mintokei.example.com --email you@example.com
+
+# Or plain HTTP behind your OWN reverse proxy (no domain/email needed):
+curl -fsSL https://raw.githubusercontent.com/Mintokei/mintokei-releases/main/scripts/install-server.sh \
+  | sudo bash -s -- --no-tls
 ```
 
 …or manually: download `docker-compose.yml` + `env.example` from the latest
