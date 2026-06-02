@@ -1,0 +1,50 @@
+name: Release All
+
+# One-click release of the Desktop installers, API binaries, and Runner binaries
+# for a single version. Calls the three reusable release workflows in parallel;
+# each produces a DRAFT release you then review and publish.
+#
+# NOTE: this does NOT build the server container images — those are released by
+# pushing a `server-v*` tag in Mintokei/mintokei (server-release.yml). See
+# RELEASING.md in the source repo.
+#
+# After this runs, publish the drafts: set the DESKTOP release as "latest" (the
+# auto-updater needs it); leave api/runner NOT latest.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version without prefix, e.g. 0.2.0 → desktop-v0.2.0 / api-v0.2.0 / runner-v0.2.0'
+        required: true
+        type: string
+      source_ref:
+        description: 'Source ref/sha in Mintokei/mintokei to build'
+        required: true
+        default: master
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    uses: ./.github/workflows/desktop-release.yml
+    with:
+      tag: desktop-v${{ inputs.version }}
+      source_ref: ${{ inputs.source_ref }}
+    secrets: inherit
+
+  api:
+    uses: ./.github/workflows/api-release.yml
+    with:
+      tag: api-v${{ inputs.version }}
+      source_ref: ${{ inputs.source_ref }}
+    secrets: inherit
+
+  runner:
+    uses: ./.github/workflows/runner-release.yml
+    with:
+      tag: runner-v${{ inputs.version }}
+      source_ref: ${{ inputs.source_ref }}
+    secrets: inherit
