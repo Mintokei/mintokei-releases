@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Mintokei server installer (Docker Compose path) — SKELETON.
+# Mintokei server installer (Docker Compose path).
 #
 # Brings up the self-hosted stack with one command. TLS is a toggle, not a
-# separate build: pass --domain to enable bundled HTTPS (Caddy), or --no-tls to
-# run plain HTTP behind your own proxy. See docs/packaging-distribution-options.md.
+# separate build: pass --domain (+ --email) to enable bundled HTTPS via Caddy,
+# or --no-tls to run plain HTTP behind your own reverse proxy.
 #
 # Usage:
 #   ./install-server.sh --domain mintokei.example.com --email you@example.com
