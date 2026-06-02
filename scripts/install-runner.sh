@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mintokei runner installer for a HEADLESS (no-screen) machine — SKELETON.
+# Mintokei runner installer for a HEADLESS (no-screen) machine.
 #
 # Downloads the self-contained runner binary, enrols it against your server with
 # a one-time token, and installs it as a systemd service. The runner dials OUT
