@@ -93,7 +93,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.rid }}
+          name: runner-${{ matrix.rid }}
           path: dist/*
           if-no-files-found: error
 
@@ -117,6 +117,7 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: runner-*
           path: artifacts
           merge-multiple: true
 
