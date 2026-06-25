@@ -109,10 +109,11 @@ jobs:
           token: ${{ secrets.SOURCE_TOKEN }}
           path: src
 
-      - name: Stage helper
+      - name: Stage helpers
         run: |
           mkdir -p deploy
           cp src/scripts/install-runner.sh deploy/
+          cp src/scripts/install-runner.ps1 deploy/
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -133,7 +134,7 @@ jobs:
             artifacts/*
             deploy/*
           body: |
-            Self-contained Mintokei Runner binaries + install-runner.sh.
+            Self-contained Mintokei Runner binaries + install scripts.
 
             Built from Mintokei/mintokei@${{ inputs.source_ref }}.
 
@@ -147,4 +148,13 @@ jobs:
             sudo ./install-runner.sh --backend https://your-server --token <enrollment-token>
             ```
             It downloads the right binary, enrolls, and installs a systemd service.
+
+            **Install (Windows):** download `install-runner.ps1` and run from an
+            elevated PowerShell:
+            ```powershell
+            .\install-runner.ps1 -Backend https://your-server -Token <enrollment-token>
+            ```
+            It downloads the win-x64 binary, enrolls, and registers a Scheduled Task
+            (or an NSSM service with `-UseNssm`).
+
             Generate the one-time token in the WebApp: Runners → Add.
